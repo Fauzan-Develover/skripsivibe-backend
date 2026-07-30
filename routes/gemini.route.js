@@ -3,9 +3,9 @@ require("dotenv").config();
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const pdfParse = require('pdf-parse'); // Import langsung
+const pdfParse = require('pdf-parse'); 
 const { GoogleGenerativeAI } = require('@google/generative-ai')
-const evaluasiController = require('../controllers/evaluasiController');
+const evaluasiController = require('../controllers/evaluasiController.js');
 
 // Konfigurasi Multer untuk menangkap file PDF dari React di memori
 const upload = multer({ storage: multer.memoryStorage() });
@@ -155,16 +155,18 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         - JANGAN PERNAH menyertakan teks apapun di luar JSON.
         `;
 
-        console.log("Meminta evaluasi QnA ke Gemini (Model: gemini-2.5-flash)...");
+        console.log("Meminta evaluasi QnA ke Gemini...");
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const result = await model.generateContent(prompt);
         let jawaban_teks = result.response.text().trim();
 
-        if (jawaban_teks.includes("```json")) {
-            jawaban_teks = jawaban_teks.split("```json")[1].split("```")[0].trim();
-        } else if (jawaban_teks.includes("```")) {
-            jawaban_teks = jawaban_teks.split("```")[1].split("```")[0].trim();
+        // PEMBERSIH JSON TAHAP DEWA (Mengabaikan teks basa-basi AI)
+        const jsonStart = jawaban_teks.indexOf('{');
+        const jsonEnd = jawaban_teks.lastIndexOf('}');
+        
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+            jawaban_teks = jawaban_teks.substring(jsonStart, jsonEnd + 1);
         }
 
         const hasil_evaluasi = JSON.parse(jawaban_teks);
@@ -178,7 +180,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
 
     } catch (error) {
         console.error("Error Evaluasi QnA:", error);
-        res.status(500).json({ detail: "Gagal terhubung ke AI untuk evaluasi." });
+        res.status(500).json({ detail: `Sistem AI Gagal: ${error.message}` });
     }
 });
 
