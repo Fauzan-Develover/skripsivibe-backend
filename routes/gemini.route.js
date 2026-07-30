@@ -4,7 +4,8 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const pdfParse = require('pdf-parse'); // Import langsung
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI } = require('@google/generative-ai')
+const evaluasiController = require('../controllers/evaluasiController');
 
 // Konfigurasi Multer untuk menangkap file PDF dari React di memori
 const upload = multer({ storage: multer.memoryStorage() });
@@ -180,5 +181,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         res.status(500).json({ detail: "Gagal terhubung ke AI untuk evaluasi." });
     }
 });
+
+router.post('/evaluasi-skripsi', upload.single('file'), evaluasiController.evaluasiSkripsi);
 
 module.exports = router;
