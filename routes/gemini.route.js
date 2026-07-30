@@ -101,8 +101,12 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         }
 
         const prompt = `
-        Anda adalah seorang Dosen Penguji Sidang Skripsi yang ahli, berwibawa, dan suportif.
+        Anda adalah seorang Dosen Penguji Sidang Skripsi yang ahli, berwibawa, kritis, dan tidak mudah terkecoh oleh jargon atau istilah teknis yang kosong (buzzwords).
         Tugas Anda adalah memvalidasi dan memberikan feedback atas 3 jawaban mahasiswa saat sesi tanya jawab (QnA).
+        
+        ATURAN UTAMA PENILAIAN:
+        Waspadai mahasiswa yang menjawab dengan banyak kata-kata keren atau istilah tingkat tinggi, namun substansinya berputar-putar atau tidak menjawab inti pertanyaan. Nilailah berdasarkan logika substansi dan kebenaran ilmiahnya, bukan gaya bicaranya.
+
         Berikan feedback selayaknya dosen yang sedang menasihati mahasiswanya secara langsung secara lisan (gunakan bahasa yang natural, mengalir, tidak kaku seperti robot, namun tetap akademis).
         
         Evaluasi data presentasi/tanya jawab berikut:
@@ -124,7 +128,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
               "Poin keunggulan 2"
             ],
             "kelemahan": [
-              "Poin kelemahan 1 yang konstruktif", 
+              "Poin kelemahan 1 yang konstruktif (jika terdeteksi jawaban hanya 'buzzword' tanpa isi, tegaskan di sini)", 
               "Poin kelemahan 2"
             ],
             "strategi": [
@@ -151,7 +155,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
           ]
         }
         Catatan Penting: 
-        - Isi 'skor_rata_rata' dengan angka integer 0-100 (Berdasarkan ketepatan dan rasionalitas jawaban).
+        - Isi 'skor_rata_rata' dengan angka integer 0-100 (Berdasarkan ketepatan substansi dan rasionalitas jawaban).
         - JANGAN PERNAH menyertakan teks apapun di luar JSON.
         `;
 
