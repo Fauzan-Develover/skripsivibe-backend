@@ -60,8 +60,8 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         ]
         `;
 
-        console.log("Meminta pertanyaan ke Gemini (Model: gemini-1.5-pro)...");
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        console.log("Meminta pertanyaan ke Gemini (Model: gemini-2.5-flash)...");
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const result = await model.generateContent(prompt);
         let jawaban_teks = result.response.text().trim();
@@ -164,7 +164,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         `;
         
         console.log("Meminta evaluasi QnA ke Gemini...");
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const result = await model.generateContent(prompt);
         let jawaban_teks = result.response.text().trim();
