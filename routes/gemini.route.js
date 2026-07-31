@@ -89,83 +89,86 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
     }
 });
 
-// =========================================================
-// 2. ENDPOINT: EVALUASI JAWABAN QNA
-// =========================================================
 router.post('/evaluasi-qna', upload.none(), async (req, res) => {
     try {
-        const { pertanyaan_1, jawaban_1, pertanyaan_2, jawaban_2, pertanyaan_3, jawaban_3 } = req.body;
+        // PERBAIKAN 1: Tangkap presentasi_transcript dari React
+        const { presentasi_transcript, pertanyaan_1, jawaban_1, pertanyaan_2, jawaban_2, pertanyaan_3, jawaban_3 } = req.body;
 
-        if (!jawaban_1 && !jawaban_2 && !jawaban_3) {
-            return res.status(400).json({ detail: "Tidak ada jawaban yang dikirim." });
+        if (!presentasi_transcript && !jawaban_1 && !jawaban_2 && !jawaban_3) {
+            return res.status(400).json({ detail: "Tidak ada data presentasi atau jawaban yang dikirim." });
         }
 
+        // PERBAIKAN 2: Masukkan instruksi Satpam Presentasi ke dalam Prompt dengan Skor Logika
         const prompt = `
-        Anda adalah seorang Dosen Penguji Sidang Skripsi yang ahli, berwibawa, kritis, dan tidak mudah terkecoh oleh jargon atau istilah teknis yang kosong (buzzwords).
-        Tugas Anda adalah memvalidasi dan memberikan feedback atas 3 jawaban mahasiswa saat sesi tanya jawab (QnA).
+        Anda adalah seorang Dosen Penguji Sidang Skripsi yang ahli, berwibawa, kritis, dan "Killer". 
+        Anda tidak bisa dikelabui oleh mahasiswa yang hanya pandai menggunakan jargon teknologi/buzzword tanpa memahami esensi logis dari penelitiannya.
         
-        ATURAN UTAMA PENILAIAN:
-        Waspadai mahasiswa yang menjawab dengan banyak kata-kata keren atau istilah tingkat tinggi, namun substansinya berputar-putar atau tidak menjawab inti pertanyaan. Nilailah berdasarkan logika substansi dan kebenaran ilmiahnya, bukan gaya bicaranya.
-
-        Berikan feedback selayaknya dosen yang sedang menasihati mahasiswanya secara langsung secara lisan (gunakan bahasa yang natural, mengalir, tidak kaku seperti robot, namun tetap akademis).
+        TUGAS ANDA:
+        1. Evaluasi [Transkrip Presentasi]: Jadilah satpam substansi! Cek apakah mahasiswa benar-benar menjelaskan metodologi/alur dengan logis, atau hanya menumpuk kata-kata keren (buzzword salad) agar terdengar pintar.
+        2. Evaluasi [Jawaban QnA]: Nilai keakuratan jawaban terhadap pertanyaan fundamental.
         
-        Evaluasi data presentasi/tanya jawab berikut:
+        Evaluasi data berikut:
+        [Transkrip Presentasi Mahasiswa]: ${presentasi_transcript || "Mahasiswa diam / tidak presentasi."}
+        
         [Pertanyaan 1]: ${pertanyaan_1}
-        [Jawaban Mahasiswa 1]: ${jawaban_1}
+        [Jawaban Mahasiswa 1]: ${jawaban_1 || "Tidak ada jawaban."}
         
         [Pertanyaan 2]: ${pertanyaan_2}
-        [Jawaban Mahasiswa 2]: ${jawaban_2}
+        [Jawaban Mahasiswa 2]: ${jawaban_2 || "Tidak ada jawaban."}
         
         [Pertanyaan 3]: ${pertanyaan_3}
-        [Jawaban Mahasiswa 3]: ${jawaban_3}
+        [Jawaban Mahasiswa 3]: ${jawaban_3 || "Tidak ada jawaban."}
 
         Kembalikan hasil HANYA dalam format JSON persis seperti struktur ini (tanpa markdown tambahan seperti \`\`\`json):
         {
+          "evaluasi_presentasi": {
+            "feedback": "Tuliskan 1-2 kalimat feedback tajam khusus performa presentasi. Tegur keras jika hanya berisi buzzword tanpa logika.",
+            "skor_logika": 85 // Berikan 0-40 JIKA terdeteksi ngawur/buzzword salad. Berikan 70-100 JIKA alur logis.
+          },
           "qna_summary": {
             "skor_rata_rata": 85,
             "keunggulan": [
-              "Poin keunggulan 1 dengan bahasa luwes", 
+              "Poin keunggulan 1", 
               "Poin keunggulan 2"
             ],
             "kelemahan": [
-              "Poin kelemahan 1 yang konstruktif (jika terdeteksi jawaban hanya 'buzzword' tanpa isi, tegaskan di sini)", 
+              "Poin kelemahan 1 (Fokus pada substansi QnA)", 
               "Poin kelemahan 2"
             ],
             "strategi": [
-              "Saran perbaikan aplikatif", 
+              "Saran perbaikan 1", 
               "Saran perbaikan 2"
             ]
           },
           "evaluasi_qna": [
             {
-              "soal": "Tulis ulang intisari pertanyaan 1 secara singkat",
+              "soal": "Tulis ulang intisari pertanyaan 1",
               "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "Berikan 1-2 kalimat feedback selayaknya dosen berbicara langsung."
+              "feedback": "1-2 kalimat feedback selayaknya dosen."
             },
             {
-              "soal": "Tulis ulang intisari pertanyaan 2 secara singkat",
+              "soal": "Tulis ulang intisari pertanyaan 2",
               "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "Berikan 1-2 kalimat feedback selayaknya dosen berbicara langsung."
+              "feedback": "1-2 kalimat feedback selayaknya dosen."
             },
             {
-              "soal": "Tulis ulang intisari pertanyaan 3 secara singkat",
+              "soal": "Tulis ulang intisari pertanyaan 3",
               "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "Berikan 1-2 kalimat feedback selayaknya dosen berbicara langsung."
+              "feedback": "1-2 kalimat feedback selayaknya dosen."
             }
           ]
         }
         Catatan Penting: 
-        - Isi 'skor_rata_rata' dengan angka integer 0-100 (Berdasarkan ketepatan substansi dan rasionalitas jawaban).
+        - Isi 'skor_logika' dan 'skor_rata_rata' dengan angka integer 0-100.
         - JANGAN PERNAH menyertakan teks apapun di luar JSON.
         `;
-
+        
         console.log("Meminta evaluasi QnA ke Gemini...");
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
         const result = await model.generateContent(prompt);
         let jawaban_teks = result.response.text().trim();
 
-        // PEMBERSIH JSON TAHAP DEWA (Mengabaikan teks basa-basi AI)
         const jsonStart = jawaban_teks.indexOf('{');
         const jsonEnd = jawaban_teks.lastIndexOf('}');
         
@@ -174,7 +177,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         }
 
         const hasil_evaluasi = JSON.parse(jawaban_teks);
-        console.log("✅ Berhasil mengevaluasi jawaban!");
+        console.log("✅ Berhasil mengevaluasi presentasi dan jawaban!");
 
         res.json({
             status: "success",
@@ -182,7 +185,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
             data: hasil_evaluasi
         });
 
-    } catch (error) {
+        } catch (error) {
         console.error("Error Evaluasi QnA:", error);
         res.status(500).json({ detail: `Sistem AI Gagal: ${error.message}` });
     }
