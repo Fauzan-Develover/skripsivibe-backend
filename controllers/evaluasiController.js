@@ -33,9 +33,16 @@ exports.evaluasiSkripsi = async (req, res) => {
             }
 
             try {
-                const aiResponse = await axios.post("https://frameszans-skripsivibe-ai.hf.space/api/prediksi", {
+                const aiResponse = await axios.post("https://frameszans-skripsivibe-ai.hf.space/api/prediksi", 
+                {
                     teks_mahasiswa: teksMahasiswa
-                });
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json"
+                    }
+                }
+            );
 
                 return res.json({
                     skor_kesesuaian: result.skor,
