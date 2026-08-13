@@ -57,10 +57,6 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         
         let jawaban_teks = result.response.text().trim();
 
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
-        const result = await model.generateContent(prompt);
-        let jawaban_teks = result.response.text().trim();
-
         // PEMBERSIH JSON DARI MARKDOWN
         if (jawaban_teks.includes("```json")) {
             jawaban_teks = jawaban_teks.split("```json")[1].split("```")[0].trim();
