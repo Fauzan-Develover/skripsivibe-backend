@@ -33,14 +33,18 @@ exports.evaluasiSkripsi = async (req, res) => {
             }
 
             try {
+                // 🔥 PERBAIKAN: Mengirim teks referensi PDF dan mengatur Timeout
                 const aiResponse = await axios.post("https://frameszans-skripsivibe-ai.hf.space/api/prediksi", 
                 {
-                    teks_mahasiswa: teksMahasiswa
+                    teks_mahasiswa: teksMahasiswa,
+                    // Pastikan worker TF-IDF Anda mengembalikan teks_pdf asli ke dalam objek result!
+                    teks_referensi: result.teks_pdf || result.extractedText || teksMahasiswa 
                 },
                 {
                     headers: {
                         "Content-Type": "application/json"
-                    }
+                    },
+                    timeout: 60000 // Memberikan toleransi waktu 60 detik agar Hugging Face punya waktu bangun (Wake Up)
                 }
             );
 
@@ -51,15 +55,18 @@ exports.evaluasiSkripsi = async (req, res) => {
                 });
 
             } catch (aiError) {
+                console.error("Error dari Hugging Face:", aiError.message);
                 return res.status(500).json({ error: "Server AI Hugging Face gangguan." });
             }
         });
 
         worker.on('error', (err) => {
+            console.error("Worker Error:", err);
             return res.status(500).json({ error: "Worker Thread Error", detail: err.message });
         });
 
     } catch (error) {
+        console.error("Server Error:", error);
         res.status(500).json({ error: "Terjadi kesalahan server." });
     }
 };

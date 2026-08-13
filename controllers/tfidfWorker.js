@@ -37,7 +37,12 @@ async function processSimilarity() {
         // Batas threshold bisa disesuaikan, kita konversi agar setara dengan skor 0.02 Python
         const skorNormalisasi = skorMatch / (tokens.length || 1);
 
-        parentPort.postMessage({ success: true, skor: skorNormalisasi });
+        // 🔥 PERBAIKAN: Tambahkan teks_pdf agar bisa dikirim ke Hugging Face
+        parentPort.postMessage({ 
+            success: true, 
+            skor: skorNormalisasi,
+            teks_pdf: teksSkripsi 
+        });
     } catch (error) {
         parentPort.postMessage({ success: false, error: error.message });
     }

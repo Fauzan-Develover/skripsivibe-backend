@@ -20,8 +20,6 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ detail: "File harus berupa PDF" });
-
-        console.log("Membaca teks dari PDF menggunakan pdf-parse...");
         
         // 🚀 BACA PDF SECARA LANGSUNG (Tanpa pengecekan yang bikin error)
         const pdfData = await pdfParse(req.file.buffer);
@@ -35,35 +33,62 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         const teks_matang = teks_skripsi_mentah.substring(0, 4000);
 
         const prompt = `
-        Anda adalah seorang Dosen Penguji Skripsi yang SANGAT KRITIS, tegas, dan "Killer".
-        Anda benci basa-basi dan selalu bertanya langsung ke titik kelemahan mahasiswa.
+        Anda adalah Dosen Penguji Sidang Skripsi yang kritis dan analitis. 
+        Tugas Anda HANYA memberikan feedback kualitatif (teks). 
+        DILARANG KERAS memberikan skor angka (0-100) atau label status kelulusan/pemahaman. Penilaian skor sudah dilakukan oleh sistem AI lain. Fokuslah pada substansi teks, artikulasi, dan logika kalimat.
+
+        Berikut adalah transkrip ucapan mahasiswa selama simulasi:
         
-        Berikut adalah RINGKASAN skripsi mahasiswa:
-        ---
-        ${teks_matang}
-        ---
+        [TRANSKRIP PRESENTASI AWAL]: 
+        "${presentasi_transcript || "Mahasiswa tidak memberikan presentasi verbal."}"
         
-        Buatlah 3 pertanyaan sidang skripsi dengan ATURAN SUPER KETAT berikut:
-        1. HARUS SANGAT SINGKAT, padat, tajam. Maksimal 1-2 kalimat pendek saja per pertanyaan!
-        2. DILARANG KERAS menggunakan kata pengantar/basa-basi.
-        3. Langsung serang intinya!
+        [SESI TANYA JAWAB]:
+        [Soal 1]: "${pertanyaan_1}"
+        [Jawab 1]: "${jawaban_1 || "-"}"
         
-        Topik Pertanyaan:
-        - Pertanyaan 1: Serang validitas data atau alat ukur metodologinya.
-        - Pertanyaan 2: Serang alasan pemilihan teori/metodenya.
-        - Pertanyaan 3: Serang nilai guna / dampak asli dari penelitiannya.
+        [Soal 2]: "${pertanyaan_2}"
+        [Jawab 2]: "${jawaban_2 || "-"}"
         
-        Format output HARUS murni berupa array JSON (TANPA MARKDOWN \`\`\`json, TANPA TEKS LAIN):
-        [
-            "pertanyaan 1",
-            "pertanyaan 2",
-            "pertanyaan 3"
-        ]
+        [Soal 3]: "${pertanyaan_3}"
+        [Jawab 3]: "${jawaban_3 || "-"}"
+
+        Keluarkan output MURNI DALAM FORMAT JSON berikut (pastikan format ini dipatuhi 100%, jangan gunakan markdown \`\`\`json):
+        {
+          "qna_summary": {
+            "keunggulan": [
+              {"aspek": "Presentasi", "detail": "Wajib isi 2 kalimat evaluasi positif KHUSUS untuk [TRANSKRIP PRESENTASI AWAL]. Analisis kerapian struktur kalimat, penguasaan materi di awal, atau ketegasannya."},
+              {"aspek": "QnA", "detail": "Wajib isi 2 kalimat evaluasi positif tentang cara mahasiswa menjawab soal secara keseluruhan."}
+            ],
+            "kelemahan": [
+              {"aspek": "Presentasi", "detail": "Wajib isi 2 kalimat kritik tajam KHUSUS untuk [TRANSKRIP PRESENTASI AWAL]. Apakah berbelit-belit, ada kata filler 'eee', atau pembukaan kurang jelas?"},
+              {"aspek": "QnA", "detail": "Wajib isi 2 kalimat kritik tajam tentang cara menjawab soal QnA (apakah mengulang jawaban, panik, dsb)."}
+            ],
+            "strategi": [
+              {"aspek": "Presentasi", "detail": "Saran perbaikan konkret khusus untuk performa presentasi awal."},
+              {"aspek": "QnA", "detail": "Saran perbaikan konkret khusus untuk sesi tanya jawab."}
+            ]
+          },
+          "evaluasi_qna": [
+            {
+              "soal": "Tulis ulang Soal 1",
+              "status": "Benar / Kurang Tepat / Salah",
+              "feedback": "Kritik khusus untuk Jawab 1 secara detail (minimal 2 kalimat). Walaupun Benar, sebutkan celah atau cara penyampaian yang bisa disempurnakan."
+            },
+            {
+              "soal": "Tulis ulang Soal 2",
+              "status": "Benar / Kurang Tepat / Salah",
+              "feedback": "Kritik khusus untuk Jawab 2 secara detail (minimal 2 kalimat). Walaupun Benar, sebutkan celah atau cara penyampaian yang bisa disempurnakan."
+            },
+            {
+              "soal": "Tulis ulang Soal 3",
+              "status": "Benar / Kurang Tepat / Salah",
+              "feedback": "Kritik khusus untuk Jawab 3 secara detail (minimal 2 kalimat). Walaupun Benar, sebutkan celah atau cara penyampaian yang bisa disempurnakan."
+            }
+          ]
+        }
         `;
 
-        console.log("Meminta pertanyaan ke Gemini (Model: gemini-3.5-flash-lite)...");
         const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
-        
         const result = await model.generateContent(prompt);
         let jawaban_teks = result.response.text().trim();
 
@@ -75,7 +100,6 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         }
 
         const daftar_pertanyaan = JSON.parse(jawaban_teks);
-        console.log("✅ Berhasil generate pertanyaan!");
 
         res.json({
             status: "success",
@@ -101,14 +125,18 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
             return res.status(400).json({ detail: "Tidak ada data presentasi atau jawaban yang dikirim." });
         }
 
-        // 🔥 PERBAIKAN: Prompt dibersihkan dari tugas menghitung skor logika / rata-rata
+        // 🔥 PERBAIKAN PROMPT: Memaksa Gemini membahas Presentasi & QnA seimbang
         const prompt = `
         Anda adalah seorang Dosen Penguji Sidang Skripsi yang ahli, berwibawa, kritis, dan "Killer". 
         Anda tidak bisa dikelabui oleh mahasiswa yang hanya pandai menggunakan jargon teknologi/buzzword tanpa memahami esensi logis dari penelitiannya.
         
-        TUGAS ANDA:
-        1. Evaluasi [Transkrip Presentasi]: Berikan feedback tajam! Cek apakah mahasiswa benar-benar menjelaskan metodologi/alur dengan logis, atau hanya menumpuk kata-kata keren (buzzword salad).
-        2. Evaluasi [Jawaban QnA]: Berikan feedback deskriptif atas keakuratan jawaban terhadap pertanyaan penguji.
+        ATURAN WAJIB EVALUASI (HARUS DIIKUTI 100%):
+        1. Anda WAJIB memberikan porsi evaluasi yang SEIMBANG antara Sesi "Presentasi" dan Sesi "QnA".
+        2. Teks presentasi mahasiswa harus dibedah secara mendalam (analisis alur logika, kelengkapan teori, dan penyampaian latar belakang). Jangan abaikan ini!
+        3. Pada bagian "qna_summary" (keunggulan, kelemahan, strategi), Anda WAJIB memberikan MINIMAL 2 poin.
+           - Poin pertama WAJIB berawalan tag [Presentasi] yang murni membahas detail teknis presentasinya.
+           - Poin kedua WAJIB berawalan tag [QnA] yang murni membahas cara dia menjawab pertanyaan.
+        4. Jangan berikan pujian palsu. Jika presentasinya hanya berisi omong kosong (Word Salad) tanpa teori teknis, hajar dengan kritik tajam di poin [Presentasi].
         
         Evaluasi data berikut:
         [Transkrip Presentasi Mahasiswa]: ${presentasi_transcript || "Mahasiswa diam / tidak presentasi."}
@@ -129,16 +157,16 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
           },
           "qna_summary": {
             "keunggulan": [
-              "Poin keunggulan 1", 
-              "Poin keunggulan 2"
+              "[Presentasi] Tulis detail keunggulan/analisis dari isi presentasinya di sini...", 
+              "[QnA] Tulis detail keunggulan cara menjawab di sini..."
             ],
             "kelemahan": [
-              "Poin kelemahan 1 (Fokus pada substansi QnA dan penyampaian)", 
-              "Poin kelemahan 2"
+              "[Presentasi] Kritik tajam apa yang kurang dari penjelasan materi di presentasinya...", 
+              "[QnA] Kritik tajam untuk jawaban yang salah atau menghindar..."
             ],
             "strategi": [
-              "Saran perbaikan 1", 
-              "Saran perbaikan 2"
+              "[Presentasi] Langkah perbaikan untuk struktur atau isi materi presentasi...", 
+              "[QnA] Langkah perbaikan cara menjawab atau teori QnA yang harus dipelajari..."
             ]
           },
           "evaluasi_qna": [
@@ -163,9 +191,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         - JANGAN PERNAH menyertakan teks apapun di luar JSON.
         `;
         
-        console.log("Meminta feedback teks evaluasi QnA ke Gemini...");
         const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
-        
         const result = await model.generateContent(prompt);
         let jawaban_teks = result.response.text().trim();
 
@@ -177,7 +203,6 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         }
 
         const hasil_evaluasi = JSON.parse(jawaban_teks);
-        console.log("✅ Berhasil mengevaluasi presentasi dan jawaban (Mode Teks Murni)!");
 
         res.json({
             status: "success",
@@ -213,11 +238,9 @@ router.post('/transcribe-audio', upload.single('file'), async (req, res) => {
         );
         formData.append("temperature", "0.2");
 
-        console.log("Mengirim audio ke Groq API...");
         const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
             method: "POST",
             headers: {
-                // 🔥 Pastikan kamu menambahkan GROQ_API_KEY di file .env backend kamu!
                 "Authorization": `Bearer ${process.env.GROQ_API_KEY}` 
             },
             body: formData
@@ -230,7 +253,6 @@ router.post('/transcribe-audio', upload.single('file'), async (req, res) => {
             return res.status(response.status).json({ detail: data.error?.message || "Gagal transkrip dari Groq" });
         }
 
-        console.log("Berhasil men-transkrip audio via Groq!");
         res.json({ text: data.text });
 
     } catch (error) {
