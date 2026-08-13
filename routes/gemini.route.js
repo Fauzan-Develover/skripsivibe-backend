@@ -33,60 +33,29 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         const teks_matang = teks_skripsi_mentah.substring(0, 4000);
 
         const prompt = `
-        Anda adalah Dosen Penguji Sidang Skripsi yang kritis dan analitis. 
-        Tugas Anda HANYA memberikan feedback kualitatif (teks). 
-        DILARANG KERAS memberikan skor angka (0-100) atau label status kelulusan/pemahaman. Penilaian skor sudah dilakukan oleh sistem AI lain. Fokuslah pada substansi teks, artikulasi, dan logika kalimat.
+        Anda adalah Dosen Penguji Sidang Skripsi. Baca potongan teks draf skripsi mahasiswa berikut ini:
 
-        Berikut adalah transkrip ucapan mahasiswa selama simulasi:
-        
-        [TRANSKRIP PRESENTASI AWAL]: 
-        "${presentasi_transcript || "Mahasiswa tidak memberikan presentasi verbal."}"
-        
-        [SESI TANYA JAWAB]:
-        [Soal 1]: "${pertanyaan_1}"
-        [Jawab 1]: "${jawaban_1 || "-"}"
-        
-        [Soal 2]: "${pertanyaan_2}"
-        [Jawab 2]: "${jawaban_2 || "-"}"
-        
-        [Soal 3]: "${pertanyaan_3}"
-        [Jawab 3]: "${jawaban_3 || "-"}"
+        """${teks_matang}"""
 
-        Keluarkan output MURNI DALAM FORMAT JSON berikut (pastikan format ini dipatuhi 100%, jangan gunakan markdown \`\`\`json):
-        {
-          "qna_summary": {
-            "keunggulan": [
-              {"aspek": "Presentasi", "detail": "Wajib isi 2 kalimat evaluasi positif KHUSUS untuk [TRANSKRIP PRESENTASI AWAL]. Analisis kerapian struktur kalimat, penguasaan materi di awal, atau ketegasannya."},
-              {"aspek": "QnA", "detail": "Wajib isi 2 kalimat evaluasi positif tentang cara mahasiswa menjawab soal secara keseluruhan."}
-            ],
-            "kelemahan": [
-              {"aspek": "Presentasi", "detail": "Wajib isi 2 kalimat kritik tajam KHUSUS untuk [TRANSKRIP PRESENTASI AWAL]. Apakah berbelit-belit, ada kata filler 'eee', atau pembukaan kurang jelas?"},
-              {"aspek": "QnA", "detail": "Wajib isi 2 kalimat kritik tajam tentang cara menjawab soal QnA (apakah mengulang jawaban, panik, dsb)."}
-            ],
-            "strategi": [
-              {"aspek": "Presentasi", "detail": "Saran perbaikan konkret khusus untuk performa presentasi awal."},
-              {"aspek": "QnA", "detail": "Saran perbaikan konkret khusus untuk sesi tanya jawab."}
-            ]
-          },
-          "evaluasi_qna": [
-            {
-              "soal": "Tulis ulang Soal 1",
-              "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "Kritik khusus untuk Jawab 1 secara detail (minimal 2 kalimat). Walaupun Benar, sebutkan celah atau cara penyampaian yang bisa disempurnakan."
-            },
-            {
-              "soal": "Tulis ulang Soal 2",
-              "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "Kritik khusus untuk Jawab 2 secara detail (minimal 2 kalimat). Walaupun Benar, sebutkan celah atau cara penyampaian yang bisa disempurnakan."
-            },
-            {
-              "soal": "Tulis ulang Soal 3",
-              "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "Kritik khusus untuk Jawab 3 secara detail (minimal 2 kalimat). Walaupun Benar, sebutkan celah atau cara penyampaian yang bisa disempurnakan."
-            }
-          ]
-        }
+        Tugas Anda: Buatkan 3 pertanyaan kritis, analitis, dan menantang untuk menguji pemahaman mahasiswa saat sidang berdasarkan teks tersebut. Jangan menanyakan hal yang terlalu dasar.
+        
+        Keluarkan HANYA output JSON Array berisi 3 string pertanyaan (tanpa markdown \`\`\`json).
+        Contoh Format Wajib:
+        [
+          "Pertanyaan penguji pertama...",
+          "Pertanyaan penguji kedua...",
+          "Pertanyaan penguji ketiga..."
+        ]
         `;
+
+        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
+        
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        });
+        
+        let jawaban_teks = result.response.text().trim();
 
         const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
         const result = await model.generateContent(prompt);
