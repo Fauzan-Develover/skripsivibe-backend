@@ -5,14 +5,26 @@ const router = express.Router();
 const multer = require('multer');
 const pdfParse = require('pdf-parse'); 
 
-const { GoogleGenerativeAI } = require('@google/generative-ai')
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const evaluasiController = require('../controllers/evaluasiController.js');
 
-// Konfigurasi Multer untuk menangkap file PDF dari React di memori
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Konfigurasi Gemini (Menggunakan API Key dari .env)
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// 🔥 1. SISTEM ROTASI 5 API KEY GEMINI DARI .ENV 🔥
+const apiKeys = [
+    process.env.GEMINI_API_KEY_1,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+    process.env.GEMINI_API_KEY_4,
+    process.env.GEMINI_API_KEY_5
+].filter(Boolean); // Otomatis membuang key yang kosong jika Anda belum mengisi kelimanya
+
+const getDynamicGenAI = () => {
+    if (apiKeys.length === 0) throw new Error("Tidak ada API Key Gemini di .env!");
+    const randomIndex = Math.floor(Math.random() * apiKeys.length);
+    console.log(`[LOG] Memakai Gemini API Key ke-${randomIndex + 1}`);
+    return new GoogleGenerativeAI(apiKeys[randomIndex]);
+};
 
 // =========================================================
 // 1. ENDPOINT: GENERATE PERTANYAAN DARI PDF (TEXT MODE)
@@ -21,7 +33,6 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ detail: "File harus berupa PDF" });
         
-        // 🚀 BACA PDF SECARA LANGSUNG (Tanpa pengecekan yang bikin error)
         const pdfData = await pdfParse(req.file.buffer);
         let teks_skripsi_mentah = pdfData.text;
 
@@ -29,8 +40,19 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
             return res.status(400).json({ detail: "Tidak dapat membaca teks dari PDF ini." });
         }
 
-        // Potong teks agar tidak kepanjangan untuk model gemini-pro (Sekitar 4000 karakter)
-        const teks_matang = teks_skripsi_mentah.substring(0, 4000);
+        // 🔥 2. SMART SAMPLING (Membaca Awal, Tengah, Akhir tanpa bikin server jebol) 🔥
+        const totalPanjang = teks_skripsi_mentah.length;
+        let teks_matang = "";
+
+        if (totalPanjang < 30000) {
+            teks_matang = teks_skripsi_mentah;
+        } else {
+            const awal = teks_skripsi_mentah.substring(0, 10000);
+            const titikTengah = Math.floor(totalPanjang / 2);
+            const tengah = teks_skripsi_mentah.substring(titikTengah - 5000, titikTengah + 5000);
+            const akhir = teks_skripsi_mentah.substring(totalPanjang - 10000, totalPanjang);
+            teks_matang = `${awal}\n\n... [BAGIAN TENGAH DOKUMEN DILEWATI] ...\n\n${tengah}\n\n... [BAGIAN SEBELUM KESIMPULAN DILEWATI] ...\n\n${akhir}`;
+        }
 
         const prompt = `
         Anda adalah Dosen Penguji Sidang Skripsi. Baca potongan teks draf skripsi mahasiswa berikut ini:
@@ -48,7 +70,9 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         ]
         `;
 
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
+        const genAI = getDynamicGenAI();
+        // Gunakan gemini-1.5-flash agar evaluasi lebih cepat selesai
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -57,7 +81,6 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         
         let jawaban_teks = result.response.text().trim();
 
-        // PEMBERSIH JSON DARI MARKDOWN
         if (jawaban_teks.includes("```json")) {
             jawaban_teks = jawaban_teks.split("```json")[1].split("```")[0].trim();
         } else if (jawaban_teks.includes("```")) {
@@ -118,7 +141,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         Kembalikan hasil HANYA dalam format JSON persis seperti struktur ini (tanpa markdown tambahan seperti \`\`\`json):
         {
           "evaluasi_presentasi": {
-            "feedback": "Tuliskan 1-2 kalimat feedback tajam khusus performa presentasi. Tegur keras jika hanya berisi buzzword tanpa logika."
+            "feedback": "FEEDBACK TIDAK DIBATASI. Berikan analisis yang komprehensif, sedetail dan semendalam mungkin sesuai dengan kualitas asli mahasiswa. Jika jawaban mahasiswa sangat hancur, berikan teguran panjang yang konstruktif. Jika sangat bagus, bedah argumennya secara akademis."
           },
           "qna_summary": {
             "keunggulan": [
