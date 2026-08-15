@@ -98,7 +98,8 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
 
     } catch (error) {
         console.error("Error Generate Pertanyaan:", error);
-        res.status(500).json({ detail: "Gagal memproses PDF atau terhubung ke AI." });
+        // 🔥 UBAH BARIS INI: Kirim pesan error aslinya ke React 🔥
+        res.status(500).json({ detail: `Gagal memproses PDF: ${error.message}` });
     }
 });
 
