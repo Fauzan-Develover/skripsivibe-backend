@@ -20,7 +20,7 @@ app.post("/api/chatbot", async (req, res) => {
     }
 
     // Pastikan memanggil genAIChatbot, bukan genAI
-    const model = genAIChatbot.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const model = genAIChatbot.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // System Prompt: Buku panduan, alur penggunaan, fitur, dan FAQ lengkap untuk SIVI
     const systemPrompt = `Kamu adalah "SIVI", asisten virtual resmi untuk platform SkripsiVibe AI. 
