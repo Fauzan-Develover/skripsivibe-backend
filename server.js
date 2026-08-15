@@ -1,28 +1,36 @@
 const express = require("express");
 const cors = require("cors");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 
+// 🔥 1. MIDDLEWARE WAJIB (HARUS DI ATAS SEMUA ROUTE) 🔥
+app.use(cors());
+app.use(express.json());
+
+// 2. IMPORT ROUTES
 const simulationRoutes = require("./routes/simulations");
 const geminiRoutes = require('./routes/gemini.route');
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+// 3. DAFTARKAN ROUTES EXTERNAL
+app.use("/api/simulations", simulationRoutes);
+app.use('/api/gemini', geminiRoutes);
 
+// 4. INISIALISASI GEMINI CHATBOT
 const genAIChatbot = new GoogleGenerativeAI(process.env.GEMINI_CHATBOT_KEY);
 
-// Endpoint khusus untuk Chatbot
+// 5. ENDPOINT KHUSUS CHATBOT
 app.post("/api/chatbot", async (req, res) => {
   try {
+    // Sekarang req.body.message pasti terbaca karena express.json() sudah jalan duluan
     const { message } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "Pesan tidak boleh kosong" });
     }
 
-    // Pastikan memanggil genAIChatbot, bukan genAI
     const model = genAIChatbot.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // System Prompt: Buku panduan, alur penggunaan, fitur, dan FAQ lengkap untuk SIVI
     const systemPrompt = `Kamu adalah "SIVI", asisten virtual resmi untuk platform SkripsiVibe AI. 
     Tugasmu adalah menjawab pertanyaan pengguna seputar fitur, cara penggunaan aplikasi, hasil evaluasi, dan keamanan data dengan ringkas, jelas, dan ramah. 
     JANGAN mengarang atau menyebutkan fitur yang tidak ada di dalam pedoman ini.
@@ -72,13 +80,7 @@ app.post("/api/chatbot", async (req, res) => {
   }
 });
 
-app.use(cors());
-app.use(express.json());
-
-app.use("/api/simulations", simulationRoutes);
-app.use('/api/gemini', geminiRoutes);
-
-// KODE BARU: Deteksi otomatis port dari server, jika tidak ada gunakan 5000
+// 6. JALANKAN SERVER
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
