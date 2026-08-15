@@ -29,7 +29,7 @@ app.post("/api/chatbot", async (req, res) => {
       return res.status(400).json({ error: "Pesan tidak boleh kosong" });
     }
 
-    const model = genAIChatbot.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAIChatbot.getGenerativeModel({ model: "gemini-pro" });
 
     const systemPrompt = `Kamu adalah "SIVI", asisten virtual resmi untuk platform SkripsiVibe AI. 
     Tugasmu adalah menjawab pertanyaan pengguna seputar fitur, cara penggunaan aplikasi, hasil evaluasi, dan keamanan data dengan ringkas, jelas, dan ramah. 
