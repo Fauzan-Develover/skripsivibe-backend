@@ -178,9 +178,15 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         Catatan Penting: 
         - JANGAN PERNAH menyertakan teks apapun di luar JSON.
         `;
+
+        const genAI = getDynamicGenAI();
         
-        const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
-        const result = await model.generateContent(prompt);
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }); 
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+        });
+        
         let jawaban_teks = result.response.text().trim();
 
         const jsonStart = jawaban_teks.indexOf('{');
