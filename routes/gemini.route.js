@@ -17,7 +17,7 @@ const apiKeys = [
     process.env.GEMINI_API_KEY_3,
     process.env.GEMINI_API_KEY_4,
     process.env.GEMINI_API_KEY_5
-].filter(Boolean); // Otomatis membuang key yang kosong jika Anda belum mengisi kelimanya
+].filter(Boolean);
 
 const getDynamicGenAI = () => {
     if (apiKeys.length === 0) throw new Error("Tidak ada API Key Gemini di .env!");
@@ -27,7 +27,7 @@ const getDynamicGenAI = () => {
 };
 
 // =========================================================
-// 1. ENDPOINT: GENERATE PERTANYAAN DARI PDF (TEXT MODE)
+// 1. ENDPOINT: GENERATE PERTANYAAN DARI PDF
 // =========================================================
 router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
     try {
@@ -40,7 +40,7 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
             return res.status(400).json({ detail: "Tidak dapat membaca teks dari PDF ini." });
         }
 
-        // 🔥 2. SMART SAMPLING (Membaca Awal, Tengah, Akhir tanpa bikin server jebol) 🔥
+        // 🔥 2. SMART SAMPLING 🔥
         const totalPanjang = teks_skripsi_mentah.length;
         let teks_matang = "";
 
@@ -61,17 +61,21 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
 
         Tugas Anda: Buatkan 3 pertanyaan kritis, analitis, dan menantang untuk menguji pemahaman mahasiswa saat sidang berdasarkan teks tersebut. Jangan menanyakan hal yang terlalu dasar.
         
+        🔥 ATURAN WAJIB:
+        1. Setiap pertanyaan HARUS SINGKAT DAN PADAT (Maksimal 1-2 kalimat atau sekitar 15-25 kata).
+        2. LANGSUNG ke inti pertanyaan. JANGAN berikan kalimat pengantar, basa-basi, atau ringkasan materi sebelum bertanya.
+        3. Gunakan bahasa lisan yang natural selayaknya dosen yang sedang bertanya langsung secara verbal.
+        
         Keluarkan HANYA output JSON Array berisi 3 string pertanyaan (tanpa markdown \`\`\`json).
         Contoh Format Wajib:
         [
-          "Pertanyaan penguji pertama...",
-          "Pertanyaan penguji kedua...",
-          "Pertanyaan penguji ketiga..."
+          "Pertanyaan penguji pertama yang singkat dan padat...",
+          "Pertanyaan penguji kedua yang langsung ke inti...",
+          "Pertanyaan penguji ketiga tanpa basa-basi..."
         ]
         `;
 
         const genAI = getDynamicGenAI();
-        // Gunakan gemini-3.5-flash agar evaluasi lebih cepat selesai
         const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" }); 
         
         const result = await model.generateContent({
@@ -98,13 +102,12 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
 
     } catch (error) {
         console.error("Error Generate Pertanyaan:", error);
-        // 🔥 UBAH BARIS INI: Kirim pesan error aslinya ke React 🔥
         res.status(500).json({ detail: `Gagal memproses PDF: ${error.message}` });
     }
 });
 
 // =========================================================
-// 2. ENDPOINT: EVALUASI QNA (MURNI UNTUK TEKS FEEDBACK)
+// 2. ENDPOINT: EVALUASI QNA 
 // =========================================================
 router.post('/evaluasi-qna', upload.none(), async (req, res) => {
     try {
@@ -114,18 +117,18 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
             return res.status(400).json({ detail: "Tidak ada data presentasi atau jawaban yang dikirim." });
         }
 
-        // 🔥 PERBAIKAN PROMPT: Memaksa Gemini membahas Presentasi & QnA seimbang
+        // 🔥 PERBAIKAN PROMPT: Feedback dinamis, Soal asli, dan Peningkatan kualitas jawaban
         const prompt = `
         Anda adalah seorang Dosen Penguji Sidang Skripsi yang ahli, berwibawa, kritis, dan "Killer". 
-        Anda tidak bisa dikelabui oleh mahasiswa yang hanya pandai menggunakan jargon teknologi/buzzword tanpa memahami esensi logis dari penelitiannya.
+        Anda tidak bisa dikelabui oleh mahasiswa yang hanya pandai menggunakan jargon tanpa esensi logis.
         
         ATURAN WAJIB EVALUASI (HARUS DIIKUTI 100%):
-        1. Anda WAJIB memberikan porsi evaluasi yang SEIMBANG antara Sesi "Presentasi" dan Sesi "QnA".
-        2. Teks presentasi mahasiswa harus dibedah secara mendalam (analisis alur logika, kelengkapan teori, dan penyampaian latar belakang). Jangan abaikan ini!
-        3. Pada bagian "qna_summary" (keunggulan, kelemahan, strategi), Anda WAJIB memberikan MINIMAL 2 poin.
-           - Poin pertama WAJIB berawalan tag [Presentasi] yang murni membahas detail teknis presentasinya.
-           - Poin kedua WAJIB berawalan tag [QnA] yang murni membahas cara dia menjawab pertanyaan.
-        4. Jangan berikan pujian palsu. Jika presentasinya hanya berisi omong kosong (Word Salad) tanpa teori teknis, hajar dengan kritik tajam di poin [Presentasi].
+        1. Berikan porsi evaluasi yang SEIMBANG antara Sesi "Presentasi" dan Sesi "QnA".
+        2. Pada bagian "qna_summary" (keunggulan, kelemahan, strategi), JUMLAH POIN BEBAS tergantung dari kualitas asli performa mahasiswa. Anda tidak dibatasi harus 2 poin. Namun, SETIAP POIN WAJIB diawali dengan tag [Presentasi] atau [QnA] agar mahasiswa tahu konteksnya.
+        3. Pada bagian "evaluasi_qna", Anda WAJIB MENULIS ULANG PERTANYAAN ASLINYA secara utuh dan persis di bagian "soal". Jangan diringkas atau diubah.
+        4. Pada bagian "feedback" di "evaluasi_qna":
+           - Jika jawaban mahasiswa SALAH atau MENGHINDAR: Berikan kritik tajam, lalu berikan contoh/rekomendasi cara menjawab yang benar secara teori.
+           - Jika jawaban mahasiswa SUDAH BENAR: Jangan hanya memuji. Anda WAJIB memberikan arahan bagaimana menyempurnakan jawaban tersebut agar kalimatnya jauh lebih padat, terstruktur, dan akademis. Berikan contoh kalimat jawaban sempurnanya.
         
         Evaluasi data berikut:
         [Transkrip Presentasi Mahasiswa]: ${presentasi_transcript || "Mahasiswa diam / tidak presentasi."}
@@ -142,42 +145,40 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
         Kembalikan hasil HANYA dalam format JSON persis seperti struktur ini (tanpa markdown tambahan seperti \`\`\`json):
         {
           "evaluasi_presentasi": {
-            "feedback": "FEEDBACK TIDAK DIBATASI. Berikan analisis yang komprehensif, sedetail dan semendalam mungkin sesuai dengan kualitas asli mahasiswa. Jika jawaban mahasiswa sangat hancur, berikan teguran panjang yang konstruktif. Jika sangat bagus, bedah argumennya secara akademis."
+            "feedback": "Berikan analisis komprehensif, padat, dan akademis selayaknya dosen penguji terkait materi presentasinya."
           },
           "qna_summary": {
             "keunggulan": [
-              "[Presentasi] Tulis detail keunggulan/analisis dari isi presentasinya di sini...", 
-              "[QnA] Tulis detail keunggulan cara menjawab di sini..."
+              "[Presentasi] (Tulis poin keunggulan presentasi, jumlah bebas...)", 
+              "[QnA] (Tulis poin keunggulan cara menjawab, jumlah bebas...)"
             ],
             "kelemahan": [
-              "[Presentasi] Kritik tajam apa yang kurang dari penjelasan materi di presentasinya...", 
-              "[QnA] Kritik tajam untuk jawaban yang salah atau menghindar..."
+              "[Presentasi] (Tulis poin kelemahan presentasi, jumlah bebas...)", 
+              "[QnA] (Tulis poin kelemahan cara menjawab, jumlah bebas...)"
             ],
             "strategi": [
-              "[Presentasi] Langkah perbaikan untuk struktur atau isi materi presentasi...", 
-              "[QnA] Langkah perbaikan cara menjawab atau teori QnA yang harus dipelajari..."
+              "[Presentasi] (Tulis poin strategi presentasi, jumlah bebas...)", 
+              "[QnA] (Tulis poin strategi QnA, jumlah bebas...)"
             ]
           },
           "evaluasi_qna": [
             {
-              "soal": "Tulis ulang intisari pertanyaan 1",
+              "soal": "Tulis PERSIS ulang Pertanyaan 1 di sini sesuai data yang dikirimkan",
               "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "1-2 kalimat feedback selayaknya dosen."
+              "feedback": "Kritik akademis dosen. Jika benar, berikan contoh cara menyusun kalimat jawaban agar lebih akademis dan padat. Jika salah, perbaiki teorinya."
             },
             {
-              "soal": "Tulis ulang intisari pertanyaan 2",
+              "soal": "Tulis PERSIS ulang Pertanyaan 2 di sini sesuai data yang dikirimkan",
               "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "1-2 kalimat feedback selayaknya dosen."
+              "feedback": "Kritik akademis dosen. Jika benar, berikan contoh cara menyusun kalimat jawaban agar lebih akademis dan padat. Jika salah, perbaiki teorinya."
             },
             {
-              "soal": "Tulis ulang intisari pertanyaan 3",
+              "soal": "Tulis PERSIS ulang Pertanyaan 3 di sini sesuai data yang dikirimkan",
               "status": "Benar / Kurang Tepat / Salah",
-              "feedback": "1-2 kalimat feedback selayaknya dosen."
+              "feedback": "Kritik akademis dosen. Jika benar, berikan contoh cara menyusun kalimat jawaban agar lebih akademis dan padat. Jika salah, perbaiki teorinya."
             }
           ]
         }
-        Catatan Penting: 
-        - JANGAN PERNAH menyertakan teks apapun di luar JSON.
         `;
 
         const genAI = getDynamicGenAI();
@@ -205,7 +206,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
             data: hasil_evaluasi
         });
 
-        } catch (error) {
+    } catch (error) {
         console.error("Error Evaluasi QnA:", error);
         res.status(500).json({ detail: `Sistem AI Gagal: ${error.message}` });
     }
@@ -220,7 +221,6 @@ router.post('/transcribe-audio', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ detail: "File audio tidak ditemukan." });
 
-        // Mengubah buffer audio dari Multer menjadi format Blob yang diterima Fetch API Node.js
         const audioBlob = new Blob([req.file.buffer], { type: req.file.mimetype || 'audio/webm' });
         
         const formData = new FormData();
