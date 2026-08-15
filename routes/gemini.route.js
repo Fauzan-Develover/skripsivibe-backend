@@ -71,8 +71,8 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         `;
 
         const genAI = getDynamicGenAI();
-        // Gunakan gemini-1.5-flash agar evaluasi lebih cepat selesai
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+        // Gunakan gemini-flash-latest agar evaluasi lebih cepat selesai
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }); 
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
