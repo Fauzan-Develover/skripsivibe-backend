@@ -71,8 +71,8 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         `;
 
         const genAI = getDynamicGenAI();
-        // Gunakan gemini-flash-latest agar evaluasi lebih cepat selesai
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }); 
+        // Gunakan gemini-2.5-flash agar evaluasi lebih cepat selesai
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -182,7 +182,7 @@ router.post('/evaluasi-qna', upload.none(), async (req, res) => {
 
         const genAI = getDynamicGenAI();
         
-        const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" }); 
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: "application/json" }
