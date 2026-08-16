@@ -55,25 +55,28 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         }
 
         const prompt = `
-        Anda adalah Dosen Penguji Sidang Skripsi. Baca potongan teks draf skripsi mahasiswa berikut ini:
-
+        Anda adalah Dosen Penguji Sidang. Baca teks draf skripsi ini:
         """${teks_matang}"""
 
-        Tugas Anda: Buatkan 3 pertanyaan kritis, analitis, dan menantang untuk menguji pemahaman mahasiswa saat sidang berdasarkan teks tersebut. Jangan menanyakan hal yang terlalu dasar.
+        Tugas Anda: Buat 3 pertanyaan penguji yang sangat kritis.
         
-        ATURAN WAJIB (HARUS DIIKUTI 100%):
-        1. HANYA BOLEH ADA 1 PERTANYAAN TUNGGAL per poin (Hanya boleh ada SATU tanda tanya '?' di setiap poin). JANGAN PERNAH menanyakan dua hal sekaligus secara bertubi-tubi.
-        2. HARUS SANGAT SINGKAT DAN PADAT (Maksimal 15 kata saja).
-        3. LANGSUNG ke inti pertanyaan. JANGAN berikan kalimat pengantar, basa-basi, atau ringkasan materi sebelum bertanya.
-        4. Gunakan bahasa lisan yang natural selayaknya dosen yang sedang bertanya langsung secara verbal.
+        🔥 ATURAN MUTLAK (JIKA DILANGGAR, ANDA GAGAL):
+        1. DILARANG KERAS menggunakan kalimat pengantar, prolog, latar belakang, teori, atau studi kasus sebelum bertanya!
+        2. LANGSUNG TEMBAK ke intinya (Gunakan kata tanya: Mengapa, Bagaimana, Apa).
+        3. SANGAT PENDEK: MAKSIMAL 15 KATA per pertanyaan.
+        4. HANYA 1 TANDA TANYA (?) per baris.
         
-        Keluarkan HANYA output JSON Array berisi 3 string pertanyaan (tanpa markdown \`\`\`json).
-        Contoh Format Wajib:
+        CONTOH SALAH (JANGAN LAKUKAN INI KARENA ADA PROLOG & TERLALU PANJANG):
+        "Sistem Anda mendeteksi kepanikan dari teks. Padahal suara lebih dominan. Mengapa Anda memilih NLP daripada akustik?" 
+        
+        CONTOH BENAR (WAJIB TIRU GAYA INI):
         [
-          "Bagaimana Anda memitigasi risiko overfitting pada data sintetis tersebut?",
-          "Apa metrik utama yang membuktikan validitas model ini?",
-          "Mengapa Anda memilih pendekatan NLP untuk mendeteksi kepanikan?"
+          "Mengapa Anda menggunakan NLP daripada analisis akustik untuk mendeteksi kepanikan?",
+          "Bagaimana cara sistem membedakan jeda berpikir dan jeda panik dari teks?",
+          "Apa metrik kuantitatif yang membuktikan bahwa model Anda tidak overfitting?"
         ]
+        
+        Keluarkan HANYA output JSON Array.
         `;
 
         const genAI = getDynamicGenAI();
@@ -85,15 +88,27 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
         });
         
         let jawaban_teks = result.response.text().trim();
+        let daftar_pertanyaan = []; // Dideklarasikan sekali saja di sini
 
-        if (jawaban_teks.includes("```json")) {
-            jawaban_teks = jawaban_teks.split("```json")[1].split("```")[0].trim();
-        } else if (jawaban_teks.includes("```")) {
-            jawaban_teks = jawaban_teks.split("```")[1].split("```")[0].trim();
+        try {
+            // Strategi Jaring Penangkap: Cari posisi kurung siku pembuka dan penutup Array
+            const jsonStart = jawaban_teks.indexOf('[');
+            const jsonEnd = jawaban_teks.lastIndexOf(']');
+
+            if (jsonStart !== -1 && jsonEnd !== -1) {
+                // Potong paksa hanya teks yang ada di dalam kurung siku
+                let cleanJson = jawaban_teks.substring(jsonStart, jsonEnd + 1);
+                daftar_pertanyaan = JSON.parse(cleanJson); // Dimasukkan dengan aman
+            } else {
+                // Jika tidak ada kurung siku, coba parse utuh (jaga-jaga)
+                daftar_pertanyaan = JSON.parse(jawaban_teks);
+            }
+        } catch (parseError) {
+            console.error("[CRITICAL] Gagal mem-parsing JSON dari AI:", jawaban_teks);
+            return res.status(500).json({ detail: "Sistem gagal memproses format AI. Silakan klik tombol Generate ulang." });
         }
 
-        const daftar_pertanyaan = JSON.parse(jawaban_teks);
-
+        // Langsung dikirim ke frontend, tanpa ada JSON.parse di luar try-catch lagi
         res.json({
             status: "success",
             message: "Pertanyaan berhasil dibuat.",
