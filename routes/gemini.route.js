@@ -61,17 +61,18 @@ router.post('/generate-pertanyaan', upload.single('file'), async (req, res) => {
 
         Tugas Anda: Buatkan 3 pertanyaan kritis, analitis, dan menantang untuk menguji pemahaman mahasiswa saat sidang berdasarkan teks tersebut. Jangan menanyakan hal yang terlalu dasar.
         
-        🔥 ATURAN WAJIB:
-        1. Setiap pertanyaan HARUS SINGKAT DAN PADAT (Maksimal 1-2 kalimat atau sekitar 15-25 kata).
-        2. LANGSUNG ke inti pertanyaan. JANGAN berikan kalimat pengantar, basa-basi, atau ringkasan materi sebelum bertanya.
-        3. Gunakan bahasa lisan yang natural selayaknya dosen yang sedang bertanya langsung secara verbal.
+        ATURAN WAJIB (HARUS DIIKUTI 100%):
+        1. HANYA BOLEH ADA 1 PERTANYAAN TUNGGAL per poin (Hanya boleh ada SATU tanda tanya '?' di setiap poin). JANGAN PERNAH menanyakan dua hal sekaligus secara bertubi-tubi.
+        2. HARUS SANGAT SINGKAT DAN PADAT (Maksimal 15 kata saja).
+        3. LANGSUNG ke inti pertanyaan. JANGAN berikan kalimat pengantar, basa-basi, atau ringkasan materi sebelum bertanya.
+        4. Gunakan bahasa lisan yang natural selayaknya dosen yang sedang bertanya langsung secara verbal.
         
         Keluarkan HANYA output JSON Array berisi 3 string pertanyaan (tanpa markdown \`\`\`json).
         Contoh Format Wajib:
         [
-          "Pertanyaan penguji pertama yang singkat dan padat...",
-          "Pertanyaan penguji kedua yang langsung ke inti...",
-          "Pertanyaan penguji ketiga tanpa basa-basi..."
+          "Bagaimana Anda memitigasi risiko overfitting pada data sintetis tersebut?",
+          "Apa metrik utama yang membuktikan validitas model ini?",
+          "Mengapa Anda memilih pendekatan NLP untuk mendeteksi kepanikan?"
         ]
         `;
 
